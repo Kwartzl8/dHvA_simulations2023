@@ -91,8 +91,19 @@ else
     fclose(fid);
 end
 
-% Call the combine_bands function with the selected files
-skeaf_data = combine_bands(selected_files, band_numbers);
+df = OrbitData;
+df.load_skeaf_files(selected_files, band_numbers);
+df.derivatives_calc(["freq_cos", "mass_cos"], 0.95);
 
-% Now you have the combined data in the 'skeaf_data' variable
-% You can work with the 'skeaf_data' object as needed.
+% define the magnetic field range
+Bmin = 8;
+Bmax = 20;
+BinvStep = 1e-4;
+BinvRange = 1/Bmax: BinvStep: 1/Bmin;
+BinvRange = BinvRange(end:-1:1);
+Brange = 1./(BinvRange);
+
+torque = df.calculate_torque(Brange, 2);
+
+df.plot_torque_vs_field(torque, Brange, 30, 30.5, ...
+    "Torque response for CsV_3Sb_5 no spin-orbit bands 67 & 68, at \theta=30 deg ")

@@ -1,5 +1,4 @@
 % Initialize variables
-selected_files = [];     % To store the selected file paths
 band_numbers = [];       % To store the band numbers
 
 % Check if the "program_runtime_settings" folder exists, and create it if necessary
@@ -15,11 +14,16 @@ use_last_files = input('Same files as last time? (y/n): ', 's');
 settings_file = fullfile(settings_folder, 'last_run_files.txt');
 
 if and(lower(use_last_files) == 'y', exist(settings_file, 'file'))
-    % doesn't load it properly, TODO fix it
+    % import each line in a cell
     saved_data = importdata('program_runtime_settings/last_run_files.txt', '\n');
     band_numbers = str2num(saved_data{end});
+    
+    % initialize and populate the selected_files list
     selected_files = strings(1, numel(band_numbers));
-    for i = 1
+    for i = 1:numel(band_numbers)
+        selected_files(i) = saved_data{i};
+    end
+    % TODO Check if the file contents make sense and have been loaded correctly
     fprintf('Using the files from the last run.');
 else
     % If the answer was yes, explain the problem
@@ -87,8 +91,17 @@ else
     fclose(fid);
 end
 
-% Call the combine_bands function with the selected files
-skeaf_data = combine_bands(selected_files, band_numbers);
+df = OrbitData;
+df.load_skeaf_files(selected_files, band_numbers);
+df.derivatives_calc(["freq_cos", "mass_cos"], 0.95);
 
-% Now you have the combined data in the 'skeaf_data' variable
-% You can work with the 'skeaf_data' object as needed.
+Bmin = 8;
+Bmax = 20;
+BinvStep = 1e-4;
+BinvRange = 1/Bmax: BinvStep: 1/Bmin;
+BinvRange = BinvRange(end:-1:1);
+Brange = 1./(BinvRange);
+
+torque = df.calculate_torque(Brange, 2);
+
+df.plot_torque_vs_field
