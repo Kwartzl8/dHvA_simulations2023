@@ -15,7 +15,8 @@ settings_file = fullfile(settings_folder, 'last_run_files.txt');
 
 if and(lower(use_last_files) == 'y', exist(settings_file, 'file'))
     % import each line in a cell
-    saved_data = importdata('program_runtime_settings/last_run_files.txt', '\n');
+    saved_data = regexp(fileread(settings_file), '\r\n|\r|\n', 'split');
+    material_name = saved_data{end - 1};
     band_numbers = str2num(saved_data{end});
     
     % initialize and populate the selected_files list
@@ -24,7 +25,7 @@ if and(lower(use_last_files) == 'y', exist(settings_file, 'file'))
         selected_files(i) = saved_data{i};
     end
     % TODO Check if the file contents make sense and have been loaded correctly
-    fprintf('Using the files from the last run.');
+    fprintf('Using the files from the last run.\n');
 else
     % If the answer was yes, explain the problem
     if lower(use_last_files) == 'y'
@@ -54,7 +55,6 @@ else
     
     % Validate user input
     if isempty(selected_indices) || any(selected_indices < 1) || any(selected_indices > numel(file_list))
-        % TODO introduce some nuance, this is too blunt
         error('Invalid input. Please enter valid integers within the range.');
         return;
     end
@@ -81,27 +81,34 @@ else
         end
     end
     
+    % ask for material name
+    material_name = input("And finally, what is the name of the material? For plot titles. ", 's');
+
     % Save file paths and band numbers for future use
-    file_data = sprintf('%s\n%s', strjoin(selected_files, '\n'), num2str(band_numbers));
+    file_data = sprintf('%s\n%s\n%s', strjoin(selected_files, '\n'), material_name, num2str(band_numbers));
     if ~exist('program_runtime_settings', 'dir')
         mkdir('program_runtime_settings');
     end
+
     fid = fopen('program_runtime_settings/last_run_files.txt', 'w');
     fprintf(fid, '%s', file_data);
     fclose(fid);
 end
 
-df = OrbitData;
+df = OrbitData();
+df.set_material_name(material_name);
 df.load_skeaf_files(selected_files, band_numbers);
 df.derivatives_calc(["freq_cos", "mass_cos"], 0.95);
 
-Bmin = 8;
-Bmax = 20;
-BinvStep = 1e-4;
+% define the magnetic field range
+Bmin = 12;
+Bmax = 16;
+BinvStep = 1e-5;
 BinvRange = 1/Bmax: BinvStep: 1/Bmin;
 BinvRange = BinvRange(end:-1:1);
 Brange = 1./(BinvRange);
 
-torque = df.calculate_torque(Brange, 2);
-
-df.plot_torque_vs_field
+df.plot_freq_vs_angle_3d()
+df.plot_torque_vs_field(Bmin, Bmax, BinvStep, 40, true);
+df.calculate_torque_FFT(Bmin, Bmax, BinvStep, 1, 2);
+df.plot_FFT(true, df.material, "freqMin", 1700, "freqMax", 2700, "angleMin", 10, "angleMax", 80);

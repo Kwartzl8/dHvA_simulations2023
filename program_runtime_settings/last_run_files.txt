@@ -1,3 +1,3 @@
-/Users/alexandrudobra/University/Summer project/Matlab/dHvA_simulation2023/data/CsV3Sb5/no_SO/band67/results_freqvsangle.out
-/Users/alexandrudobra/University/Summer project/Matlab/dHvA_simulation2023/data/CsV3Sb5/no_SO/band68/results_freqvsangle.out
-67  68
+/Users/alexandrudobra/University/Summer project/Matlab/dHvA_simulation2023/data/LiFeAs/fine_orbits/band31/results_freqvsangle.out
+LiFeAs
+31
