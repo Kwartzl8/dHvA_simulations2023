@@ -8,6 +8,7 @@ The `OrbitData` class in MATLAB is designed to handle and analyze data related t
 - `material` (string): The material name associated with the data.
 - `data` (table): A table containing orbit data, including columns for band, theta, phi, frequency, mass, curvature, and additional derived columns like frequency times the cosine of phi.
 - `torque`: Placeholder for torque data calculated using the `calculate_torque` method.
+- `Brange`: Stores the magnetic field values at which torque is calculated.
 - `FFT_freq_range`: Frequency range array for the Fourier transform, filled in the `calculate_torque_FFT` method.
 - `torqueFFT`: Placeholder for Fourier-transformed torque data calculated using the `calculate_torque_FFT` method.
 
@@ -35,7 +36,7 @@ These are used when calculating the Fourier transform in `calculate_torque_FFT`.
 #### Visualization
 
 - `plot_freq_vs_angle_3d(df, zdata_name, freq_cos_flag, plot_title, limits)`: Creates a 3D scatter plot of frequency vs angle, the z-axis variable can be chosen by the user out of the columns of the `df.data` table.
-- `plot_torque_vs_field(df, Bmin, Bmax, BinvStep, angle, invert_B, plot_title)`: Plots torque vs magnetic field at the angle closest to the one given. It can also plot torque vs inverse magnetic field (in which the periodicity of dHvA oscillations is apparent) if the option `invert_B` is set to `true`.
+- `plot_torque_vs_field(df, selected_angles, invert_B, plot_title, limits)`: Plots torque vs magnetic field at the angles closest to the ones given. It can also plot torque vs inverse magnetic field (in which the periodicity of dHvA oscillations is apparent) if the option `invert_B` is set to `true`.
 - `plot_FFT(df, freq_cos_flag, plot_title, scaling, save_fig, filename, limits)`: Plots the Fourier transform of torque.
 
 #### Derivative Calculation
