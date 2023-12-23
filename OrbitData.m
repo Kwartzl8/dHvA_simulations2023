@@ -3,6 +3,7 @@ classdef OrbitData < handle
     properties(SetAccess=private, GetAccess=public)
         material string
         data table
+        Brange
         torque
         FFT_freq_range
         torqueFFT
@@ -144,40 +145,59 @@ classdef OrbitData < handle
             set(gca,'TickLabelInterpreter','latex');
         end
 
-        function plot_torque_vs_field(df, Bmin, Bmax, BinvStep, angle, invert_B, plot_title)
+        function plot_torque_vs_field(df, selected_angles, invert_B, plot_title, limits)
             arguments
                 df OrbitData
-                Bmin double
-                Bmax double
-                BinvStep double
-                angle double
+                selected_angles (1,:) double
                 invert_B logical = false
                 plot_title string = df.material + " torque vs field"
+                limits.Bmin (1,1) double = NaN
+                limits.Bmax (1,1) double = NaN
             end
             
             if isempty(df.torque)
                 error("Torque data is missing. Call calculate_torque on this object.");
             end
             
+            % if the limts are not given and torque data exists, set them
+            % to the minimum and maximum values of the Brange
+            if isnan(limits.Bmin)
+                limits.Bmin = df.Brange(0);
+            end
+
+            if isnan(limits.Bmax)
+                limits.Bmax = df.Brange(end);
+            end
+            
             % prepare x-axis
-            BinvRange = 1/Bmax: BinvStep: 1/Bmin;
-            Brange = BinvRange(end:-1:1);
-            if ~invert_B
-                Brange = 1./(Brange);
+            if invert_B
+                plotting_Brange = 1./(df.Brange);
+                inverse_Bmax = 1/limits.Bmax;
+                limits.Bmax = 1/limits.Bmin;
+                limits.Bmin = inverse_Bmax;
+            else
+                plotting_Brange = df.Brange;
             end
             
             % prepare y-axis
             distinct_angles = unique(df.data.phi);
-            [~, closest_angle_index] = min(abs(distinct_angles - angle));
+            % this gives a vector of the shape of selected angles
+            [~, closest_angle_index] = min(abs(distinct_angles - selected_angles));
             closest_angle = distinct_angles(closest_angle_index);
             
-            torque_at_given_angle = df.torque(closest_angle_index, :);
+            % torque_at_given_angle = df.torque(closest_angle_index, :);
             
             % plot
             figure;
-            plot(Brange, torque_at_given_angle, "DisplayName", "angle " + num2str(closest_angle, 3));
+            n_angles = length(selected_angles);
+            hold on;
+            for idx = 1:n_angles
+                plot(plotting_Brange, df.torque(closest_angle_index(idx), :),...
+                    "DisplayName", "$\phi=" + num2str(closest_angle(idx), 3) + "$");
+            end
+            hold off;
             title(plot_title, 'Interpreter', 'latex');
-            legend();
+            legend("Interpreter", "latex");
 
             if invert_B
                 xlabel_string = "Inverse magnetic field $1/B$ (1/T)";
@@ -186,6 +206,7 @@ classdef OrbitData < handle
             end
             xlabel(xlabel_string, 'Interpreter', 'latex');
             ylabel("Torque $\tau$ (arbitrary units)", 'Interpreter', 'latex');
+            xlim([limits.Bmin, limits.Bmax]);
             set(gca,'TickLabelInterpreter','latex');
         end
 
@@ -375,33 +396,33 @@ classdef OrbitData < handle
             
             BinvRange = 1/Bmax: BinvStep: 1/Bmin;
             BinvRange = BinvRange(end:-1:1);
-            Brange = 1./(BinvRange);
+            df.Brange = 1./(BinvRange);
             slice = df.data(:, :);
             
             % initialize torque with zeros in the correct dimensions
-            torque_of_orbits = zeros(height(slice), length(Brange));
+            torque_of_orbits = zeros(height(slice), length(df.Brange));
 
             for p = 1:pmax
                 chi = 2.*pi.^2.*p.*kb/(e.*hbar).*temperature.*mm...
-                    .* slice.mass * (Brange.^(-1));
+                    .* slice.mass * (df.Brange.^(-1));
                 % define the damping factors
                 RT = chi ./ sinh(chi);
-                RS = cos(.5.*pi.*p.*g.* slice.mass .* mm/me) * ones(1, length(Brange));
-                % RS = ones(height(slice), length(Brange));
-                RD = exp(-1140.*p.^0.5./mean_free_path .* (slice.freq.^0.5) * (Brange.^(-1)));
+                RS = cos(.5.*pi.*p.*g.* slice.mass .* mm/me) * ones(1, length(df.Brange));
+                % RS = ones(height(slice), length(df.Brange));
+                RD = exp(-1140.*p.^0.5./mean_free_path .* (slice.freq.^0.5) * (df.Brange.^(-1)));
                 % add the current harmonic's influence on the torque
                 torque_of_orbits = torque_of_orbits + p.^(-1.5) .* RT.*RS.*RD .*...
                     sin(2.*pi.*p.* ...
-                        (slice.freq * (Brange.^(-1)) - 0.5 + berry_phase/2/pi +...
-                            1/8/p.*sign(slice.curv) * ones(1, length(Brange))...
+                        (slice.freq * (df.Brange.^(-1)) - 0.5 + berry_phase/2/pi +...
+                            1/8/p.*sign(slice.curv) * ones(1, length(df.Brange))...
                         )...
                     );
             end
             
             % multiply with the factor independent of p
-            torque_of_orbits = ((abs(slice.curv).^(-.5)) * (Brange.^(3/2))).*...
-                (slice.dFdPhi * ones(1, length(Brange))) .* ...
-                (slice.mass.^(-1) * ones(1, length(Brange))) .* torque_of_orbits;
+            torque_of_orbits = ((abs(slice.curv).^(-.5)) * (df.Brange.^(3/2))).*...
+                (slice.dFdPhi * ones(1, length(df.Brange))) .* ...
+                (slice.mass.^(-1) * ones(1, length(df.Brange))) .* torque_of_orbits;
 
             % group the values based on angle
             sum_along_dimension1 = @(matrix) sum(matrix, 1);
@@ -409,22 +430,17 @@ classdef OrbitData < handle
             df.torque = splitapply(sum_along_dimension1, torque_of_orbits, angle_groups);
         end
 
-        function calculate_torque_FFT(df, Bmin, Bmax, BinvStep, pmax, win)
-            % make the B-field uniform in 1/B as that gives uniform
-            % frequency when taking the FFT
-            BinvRange = 1/Bmax: BinvStep: 1/Bmin;
-            BinvRange = BinvRange(end:-1:1);
-            Brange = 1./(BinvRange);
-            Brange_length = length(Brange);
-            
-            df.FFT_freq_range = 1/(1/Brange(1) - 1/Brange(end))*(0:round(Brange_length/2));
-
+        function calculate_torque_FFT(df, Bmin, Bmax, BinvStep, pmax, win)          
             % torque has dimensions of len(unique(df.data.phi)) x len(BinvRange)
             if isempty(df.torque)
                 warning("Torque data is missing. Calculating torque with the default parameters...");
                 df.calculate_torque(Bmin, Bmax, BinvStep, pmax);
             end
             
+            BinvRange = 1./(df.Brange);
+            Brange_length = length(df.Brange);
+            df.FFT_freq_range = 1/(1/df.Brange(1) - 1/df.Brange(end))*(0:round(Brange_length/2));
+
             unique_angles = unique(df.data.phi);
             % windowing
             %   1=None 2=Hanning 3=Gauss 4=Hamming 5=Blackman 6=welch

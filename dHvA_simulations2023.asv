@@ -98,17 +98,18 @@ end
 df = OrbitData();
 df.set_material_name(material_name);
 df.load_skeaf_files(selected_files, band_numbers);
-df.derivatives_calc(["freq_cos", "mass_cos"], 0.95);
+% df.derivatives_calc(["freq_cos", "mass_cos"], 0.95);
 
 % define the magnetic field range
-Bmin = 12;
+Bmin = 5;
 Bmax = 16;
-BinvStep = 1e-5;
+BinvStep = 5e-5;
 BinvRange = 1/Bmax: BinvStep: 1/Bmin;
 BinvRange = BinvRange(end:-1:1);
 Brange = 1./(BinvRange);
 
-df.plot_freq_vs_angle_3d()
-df.plot_torque_vs_field(Bmin, Bmax, BinvStep, 40, true);
+df.plot_freq_vs_angle_3d("mass_cos", true, df.material);
+df.calculate_torque(Bmin, Bmax, BinvStep);
+df.plot_torque_vs_field(40, false,"Bmi");
 df.calculate_torque_FFT(Bmin, Bmax, BinvStep, 1, 2);
-df.plot_FFT(true, df.material, "freqMin", 1700, "freqMax", 2700, "angleMin", 10, "angleMax", 80);
+df.plot_FFT(true, df.material, "freqMin", 1500, "freqMax", 3000, "angleMin", -0.1, "angleMax", 80);
